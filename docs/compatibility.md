@@ -1,6 +1,6 @@
 # Compatibility and dependency review (DEG-3)
 
-Reviewed October 13, 2026. Pinned runtime: CPython 3.12, discord.py 2.7.1 (voice extra), davey 0.1.7, PyNaCl 1.6.2 via uv.lock. PCM uses libopus through discord.py; Windows ships the SDK Opus DLL, Linux requires libopus0. CI covers Windows x64 and Linux x64. Python 3.13+ has not been qualified.
+Reviewed October 13, 2026. Pinned runtime: CPython 3.12, discord.py 2.7.1 (voice extra), davey 0.1.7, PyNaCl 1.5.0 via uv.lock. PCM uses libopus through discord.py; Windows ships the SDK Opus DLL, Linux requires libopus0. CI covers Windows x64 and Linux x64. Python 3.13+ has not been qualified.
 
 The current maintained SDK owns voice negotiation, DAVE epochs/key transitions and reconnection. DiscordVoiceReception uses its VoiceConnectionState websocket hook and add/remove_socket_listener seam; these are private extension points. Exact pins plus offline contract tests protect against accidental SDK drift. Check compatible versions before upgrades.
 
