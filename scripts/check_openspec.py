@@ -46,6 +46,9 @@ def problems(root: Path, changed_archives: set[str] | None = None) -> list[str]:
     for archive in archives:
         metadata = archive / ".openspec.yaml"
         text = metadata.read_text(encoding="utf-8") if metadata.exists() else ""
+        supplemental = archive / "supersedes.yaml"
+        if supplemental.exists():
+            text += "\n" + supplemental.read_text(encoding="utf-8")
         replaces = re.search(r"(?m)^supersedes: ([a-z0-9-]+)\s*$", text)
         if not replaces:
             continue

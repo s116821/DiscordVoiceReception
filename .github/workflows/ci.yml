@@ -57,7 +57,7 @@ jobs:
 
   release:
     needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RELEASE_READY == 'true'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
       issues: write

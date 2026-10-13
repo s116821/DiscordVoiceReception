@@ -35,9 +35,9 @@ Use scoped Conventional Commit PR titles, e.g. `feat(receiver): add audio sinks`
 
 Git tags are the sole version source. Hatchling and uv-dynamic-versioning derive PEP 440 metadata; the runtime version helper reads importlib.metadata and falls back to 0.0.0. There is no editable version constant. The configured semantic-release 25 analyzer owns classification: breaking changes major, feats minor, configured maintenance patch, documentation alone no release.
 
-Successful main-branch quality calls the reusable release workflow only when the repository variable `RELEASE_READY=true` has been set **after functional qualification**. Leave it unset for this foundation. The workflow creates the tag, builds from that tag, validates metadata, attaches SHA-256 checksums and GitHub artifact attestations in the same run. It does not depend on GITHUB_TOKEN tag events launching a separate workflow.
+Every successful main-branch quality run automatically calls the reusable release workflow. Release-worthy development merges publish without readiness switches; docs-only changes do not release. The workflow creates the tag, builds from that tag, validates metadata, attaches SHA-256 checksums and GitHub artifact attestations in the same run. It does not depend on GITHUB_TOKEN tag events launching a separate workflow.
 
-For PyPI, the owner must confirm name availability and register a trusted publisher for owner s116821, repository DiscordVoiceReception, workflow release.yml, environment pypi. Set PYPI_PUBLISH_READY=true only after registration and functional qualification; no PyPI API token is used. The independently versioned distribution name is discord-voice-reception and the import is discord_voice_reception.
+For PyPI, the owner must confirm name availability and register a trusted publisher for owner s116821, repository DiscordVoiceReception, workflow publish.yml, environment pypi. The standalone `publish.yml` workflow automatically uploads the original successful main CI run’s distributions; no readiness variable or PyPI API token is used. After publisher registration, failed uploads can be retried with its CI run ID. The independently versioned distribution name is discord-voice-reception and the import is discord_voice_reception.
 
 ## Provenance and license
 
