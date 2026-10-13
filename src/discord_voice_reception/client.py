@@ -18,10 +18,16 @@ class _SafeVoiceLogs(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         # Upstream DEBUG wire logs can contain a SESSION_DESCRIPTION transport key.
         message = str(record.msg).lower()
-        return "voice websocket frame" not in message and "voice websocket binary frame" not in message
+        return (
+            not message.startswith("received voice ")
+            and "voice websocket frame" not in message
+            and "voice websocket binary frame" not in message
+        )
 
 
 class VoiceRecvClient(discord.VoiceClient):
+    supported_modes = ("aead_xchacha20_poly1305_rtpsize",)
+
     def __init__(self, client: discord.Client, channel: discord.abc.Connectable) -> None:
         self._receiver: Receiver | None = None
         self._speakers: dict[int, int] = {}

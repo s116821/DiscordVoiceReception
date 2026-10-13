@@ -1,0 +1,8 @@
+# Design
+
+Read a separate local JSON only after DISCORD_LIVE_TESTS=1 or --temporary-server-confirmed. Dataclass token repr is disabled; generic failure messages never print config. Require temporary_server_confirmed=true, server name prefix DisCuss-Codex-Temporary, two voice channel IDs and two explicitly consented human IDs. Dedicated test bot must belong only to the configured server. Each sink drops unknown speakers and retains only frame/PCM-energy counts and capture readiness. Phases connect first channel, move to second, and explicitly disconnect/reconnect second with bounded duration. Client voice-state events abort unexpected membership before continuing. Output contains only counts/IDs/phase readiness, not frames/transcripts/keys/tokens.
+
+Use existing library SDK transport, no custom cryptography. Human operators coordinate consented synthetic speech and membership changes; metadata cannot independently prove arbitrary MLS key rotation or acoustic quality. Qualification checklist keeps those manual evidence requirements. Test defaults skip network and offline guard tests invoke fake SDK views without client.start.
+
+### Review correction before live use
+The pinned SDK advertises legacy modes and logs inbound SESSION_DESCRIPTION as `Received voice %s`, outside the original debug filter. Restrict advertised modes to implemented authenticated transport and suppress all raw received-voice debug records as well as outgoing wire frames. This fixes the existing no-key-logging contract before any live fixture is enabled.
