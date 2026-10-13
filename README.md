@@ -4,7 +4,7 @@ A reusable Python voice-reception library extending discord.py. Speech recogniti
 
 **Current status: experimental receiver, awaiting live qualification.** The package provides bounded speaker-attributed Opus/PCM delivery through VoiceRecvClient and asynchronous sinks. Offline fixtures cover transport authentication, decoding, DAVE session readiness, mapping and lifecycle. Live DAVE negotiation/decryption acceptance remains DEG-11; no functional release is qualified.
 
-See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.6.2 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
+See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.5.0 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
 
 ## Development
 
