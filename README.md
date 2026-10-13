@@ -6,6 +6,8 @@ A reusable Python voice-reception library extending discord.py. Speech recogniti
 
 See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.5.0 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
 
+The [guarded qualification harness](docs/qualification.md) runs bounded PCM attribution/move/reconnect checks only with explicit opt-in and a separate disposable test configuration. Normal pytest skips live tests without logging in.
+
 ## Development
 
 Install uv and Node.js 24, then run:
