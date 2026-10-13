@@ -12,4 +12,4 @@ The temporary-server harness currently requires a participant consent allowlist 
 - `live-qualification`: automatic participant discovery in disposable test channels.
 
 # Impact
-Qualification example, offline guard tests and setup documentation only; library runtime unchanged.
+Qualification example, offline guard tests, setup documentation and archive verification; library runtime unchanged. The replacement explicitly supersedes the earlier live-qualification archive for the same requirement, so both archives can coexist in one unmerged PR while the replacement remains strictly checked.
