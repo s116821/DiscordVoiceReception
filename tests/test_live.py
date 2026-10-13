@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from examples.qualify import MetricsSink, Settings, permitted_server, qualify
+from examples.qualify import MetricsSink, Settings, coverage, permitted_server, qualify
 
 from discord_voice_reception.client import VoiceRecvClient, _SafeVoiceLogs
 
 
 def settings() -> Settings:
-    return Settings("secret-should-not-appear", 1, (10, 20), frozenset({100, 200}))
+    return Settings("secret-should-not-appear", 1, (10, 20))
 
 
 def test_live_guards_and_metadata_sink() -> None:
@@ -32,7 +33,38 @@ def test_live_guards_and_metadata_sink() -> None:
     frame.server_id = 1
     asyncio.run(sink.write(frame))
     assert sink.frames == {100: 1} and sink.signal == {100}
+    frame.member_id = 999
+    asyncio.run(sink.write(frame))
+    assert sink.frames == {100: 1, 999: 1} and sink.signal == {100, 999}
+    frame.channel_id = 20
+    asyncio.run(sink.write(frame))
+    assert sink.rejected == 2
     assert not hasattr(sink, "pcm")
+
+
+def test_settings_need_no_participant_ids(tmp_path) -> None:
+    path = tmp_path / "test.json"
+    path.write_text(
+        json.dumps(
+            {"temporary_server_confirmed": True, "token": "local", "server_id": "1", "channel_ids": ["10", "20"]}
+        )
+    )
+    path.chmod(0o600)
+    assert Settings.load(path) == Settings("local", 1, (10, 20))
+    assert not hasattr(Settings.load(path), "members")
+
+
+def test_solo_and_multiple_speaker_coverage() -> None:
+    phases = [{"capture_ready": True, "members_with_signal": [100]} for _ in range(3)]
+    assert coverage(phases) == (True, False)
+    phases[0]["members_with_signal"] = [100, 200]
+    assert coverage(phases) == (True, False)
+    for phase in phases:
+        phase["members_with_signal"] = [100, 200]
+    assert coverage(phases) == (True, True)
+    phases[1]["members_with_signal"] = []
+    assert coverage(phases) == (False, False)
+    assert coverage([]) == (False, False)
 
 
 def test_sdk_wire_debug_cannot_expose_received_session_keys() -> None:
