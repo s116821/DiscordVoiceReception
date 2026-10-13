@@ -2,7 +2,9 @@
 
 A reusable Python voice-reception library extending discord.py. Speech recognition, profanity rules and leaderboard logic belong in consumers.
 
-**Current status: engineering foundation.** The receiver implementation and live DAVE qualification are not yet complete. No functional release is qualified. Follow the DisCuss Linear project (DEG-2 and dependent issues).
+**Current status: experimental receiver, awaiting live qualification.** The package provides bounded speaker-attributed Opus/PCM delivery through VoiceRecvClient and asynchronous sinks. Offline fixtures cover transport authentication, decoding, DAVE session readiness, mapping and lifecycle. Live DAVE negotiation/decryption acceptance remains DEG-11; no functional release is qualified.
+
+See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.5.0 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
 
 ## Development
 
@@ -37,4 +39,4 @@ For PyPI, the owner must confirm name availability and register a trusted publis
 
 ## Provenance and license
 
-GPL-3.0-only; preserve the existing LICENSE. Engineering/versioning baseline adapted from s116821/OnVelvetVelma at commit a5964e3fe7d83e7a27d655c324a76eda28cb387c (corrected PR #11). No upstream voice-receiver code is included by this foundation. Any future upstream reuse must retain its original notices and attribution.
+GPL-3.0-only; preserve the existing LICENSE. Engineering/versioning baseline adapted from s116821/OnVelvetVelma at commit a5964e3fe7d83e7a27d655c324a76eda28cb387c (corrected PR #11). Receive/DAVE design ancestry and retained MIT notices are recorded in NOTICE and licenses/. Dependency licenses remain applicable.

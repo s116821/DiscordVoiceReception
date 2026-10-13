@@ -1,0 +1,16 @@
+DiscordVoiceReception is licensed under GPL-3.0-only (see LICENSE).
+
+Receive extension and RTP/DAVE design ancestry:
+- discord-ext-voice-recv, Copyright (c) 2015-present Imayhaveborkedit, MIT.
+  https://github.com/imayhaveborkedit/discord-ext-voice-recv
+  Inspected main commit ac04ea7b0941112e83767cf1c1469b408fa06748.
+- PR #54 by rdphillips7, inspected head ddd28601fe556f585b869e215f29c8236b95f88f.
+- PR #65 by idoldange, inspected head 4da8413355893ed93798be9b4f3a07bc083875f6.
+  Credits the earlier DAVE approach in PRs #54 and #58.
+
+The focused receiver is newly authored from inspected SDK/wire contracts; it does not
+vendor the upstream optional sinks, reader logging, video or namespace modules.
+The original MIT permission/copyright notice is retained in licenses/discord-ext-voice-recv.txt.
+
+Dependencies discord.py, davey and PyNaCl retain their own licenses and notices.
+No cryptographic primitives have been copied or implemented in this package.
