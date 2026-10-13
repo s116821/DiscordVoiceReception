@@ -1,0 +1,80 @@
+name: publish-pypi
+
+on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Successful main CI run whose release distributions should be retried
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: publish-pypi
+  cancel-in-progress: false
+
+jobs:
+  distributions:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.find.outputs.artifact }}
+      run: ${{ steps.find.outputs.run }}
+    steps:
+      - name: Find distributions from a successful main push
+        id: find
+        uses: actions/github-script@v7
+        env:
+          REQUESTED_RUN: ${{ inputs.run_id || github.event.workflow_run.id }}
+        with:
+          script: |
+            const value = process.env.REQUESTED_RUN;
+            if (!/^\d+$/.test(value)) throw new Error('Expected a numeric CI run ID');
+            const run_id = Number(value);
+            const { data: run } = await github.rest.actions.getWorkflowRun({ ...context.repo, run_id });
+            const { data: workflow } = await github.rest.actions.getWorkflow({ ...context.repo, workflow_id: run.workflow_id });
+            if (run.conclusion !== 'success' || run.event !== 'push' || run.head_branch !== 'main'
+                || workflow.path !== '.github/workflows/ci.yml'
+                || run.head_repository.full_name !== `${context.repo.owner}/${context.repo.repo}`) {
+              throw new Error('Only successful main push CI distributions may publish');
+            }
+            const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,
+              { ...context.repo, run_id });
+            const matches = artifacts.filter(a => a.name === 'release-distributions' && !a.expired);
+            if (matches.length > 1) throw new Error('Ambiguous release artifact');
+            core.setOutput('run', String(run_id));
+            core.setOutput('artifact', matches.length ? String(matches[0].id) : '');
+
+  pypi:
+    needs: distributions
+    if: needs.distributions.outputs.artifact != ''
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ needs.distributions.outputs.artifact }}
+          merge-multiple: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ needs.distributions.outputs.run }}
+          path: dist/
+      - name: Verify original distributions
+        working-directory: dist
+        run: |
+          sha256sum --strict --check SHA256SUMS
+          mkdir ../packages
+          cp -- *.whl *.tar.gz ../packages/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/
+          skip-existing: true

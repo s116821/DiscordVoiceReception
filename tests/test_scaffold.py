@@ -113,7 +113,17 @@ def test_reference_analyzer_config_and_release_gate() -> None:
     assert "needs: quality" in ci
     assert "uses: ./.github/workflows/release.yml" in ci
     assert "workflow_call:" in release and "push:" not in release
-    assert "vars.RELEASE_READY == 'true'" in ci
+    assert "RELEASE_READY" not in ci
+    assert "PYPI_PUBLISH_READY" not in release
+    publish = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")
+    assert "workflow_run:" in publish and "workflow_dispatch:" in publish
+    assert "workflow_call:" not in publish
+    assert "run.conclusion !== 'success'" in publish and "run.event !== 'push'" in publish
+    assert "run.head_branch !== 'main'" in publish
+    assert "workflow.path !== '.github/workflows/ci.yml'" in publish
+    assert "sha256sum --strict --check SHA256SUMS" in publish
+    assert "run-id: ${{ needs.distributions.outputs.run }}" in publish
+    assert "environment: pypi" in publish and "id-token: write" in publish
     pr = (ROOT / ".github/workflows/pr-title.yml").read_text(encoding="utf-8")
     assert "requireScope: true" in pr
     assert "fetch-depth: 0" in ci and "fetch-depth: 0" in release

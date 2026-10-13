@@ -81,6 +81,9 @@ def test_explicit_same_pr_supersession_checks_replacement(tmp_path: Path) -> Non
     canonical.write_text(content)
     changed = {previous.name, replacement.name}
     assert problems(tmp_path, changed) == []
+    (replacement / ".openspec.yaml").write_text("")
+    (replacement / "supersedes.yaml").write_text(f"supersedes: {previous.name}\n")
+    assert problems(tmp_path, changed) == []
     canonical.write_text("## Requirements\n")
     assert any("replacement" in error and "unsynchronized" in error for error in problems(tmp_path, changed))
     assert any("unsynchronized" in error for error in problems(tmp_path, {previous.name}))

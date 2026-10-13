@@ -66,19 +66,3 @@ jobs:
         with:
           name: release-distributions
           path: dist/
-
-  pypi:
-    needs: release
-    if: needs.release.outputs.tag != '' && vars.PYPI_PUBLISH_READY == 'true'
-    runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: release-distributions
-          path: dist/
-      - name: Remove checksum file from PyPI upload directory
-        run: rm dist/SHA256SUMS
-      - uses: pypa/gh-action-pypi-publish@release/v1
