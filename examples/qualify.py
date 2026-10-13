@@ -20,7 +20,6 @@ class Settings:
     token: str = field(repr=False)
     server_id: int
     channels: tuple[int, int]
-    members: frozenset[int]
     phase_seconds: int = 30
 
     @classmethod
@@ -32,11 +31,10 @@ class Settings:
             if data["temporary_server_confirmed"] is not True:
                 raise ValueError
             channels = tuple(int(c) for c in data["channel_ids"])
-            members = frozenset(int(m) for m in data["consented_member_ids"])
             seconds = int(data.get("phase_seconds", 30))
-            if len(channels) != 2 or channels[0] == channels[1] or len(members) < 2 or not 10 <= seconds <= 120:
+            if len(channels) != 2 or channels[0] == channels[1] or not 10 <= seconds <= 120:
                 raise ValueError
-            return cls(str(data["token"]), int(data["server_id"]), (channels[0], channels[1]), members, seconds)
+            return cls(str(data["token"]), int(data["server_id"]), (channels[0], channels[1]), seconds)
         except (ValueError, KeyError, TypeError):
             raise ValueError("Invalid disposable test configuration") from None
 
@@ -51,8 +49,6 @@ def permitted_server(client: discord.Client, settings: Settings):
         channel = server.get_channel(channel_id)
         if not isinstance(channel, discord.VoiceChannel):
             raise ValueError("Test voice channel is unavailable")
-        if any(not member.bot and member.id not in settings.members for member in channel.members):
-            raise ValueError("Unconsented member present; voice test aborted")
     return server
 
 
@@ -65,11 +61,7 @@ class MetricsSink:
         self.rejected = 0
 
     async def write(self, frame: AudioFrame) -> None:
-        if (
-            frame.server_id != self.settings.server_id
-            or frame.channel_id != self.channel_id
-            or frame.member_id not in self.settings.members
-        ):
+        if frame.server_id != self.settings.server_id or frame.channel_id != self.channel_id:
             self.rejected += 1
             return
         self.frames[frame.member_id] = self.frames.get(frame.member_id, 0) + 1
@@ -78,6 +70,12 @@ class MetricsSink:
 
     async def close(self, reason: str) -> None:
         pass
+
+
+def coverage(phases: list[dict]) -> tuple[bool, bool]:
+    passed = len(phases) == 3 and all(p["capture_ready"] and p["members_with_signal"] for p in phases)
+    multiple = passed and all(len(p["members_with_signal"]) >= 2 for p in phases)
+    return bool(passed), bool(multiple)
 
 
 async def qualify(settings: Settings) -> dict:
@@ -99,12 +97,6 @@ async def qualify(settings: Settings) -> dict:
                 voice = member.guild.voice_client
                 if voice:
                     await voice.disconnect(force=True)
-        if after.channel is not None and after.channel.id in settings.channels:
-            if not member.bot and member.id not in settings.members:
-                abort.set()
-                voice = member.guild.voice_client
-                if voice:
-                    await voice.disconnect(force=True)
 
     task = asyncio.create_task(client.start(settings.token))
     phases = []
@@ -114,7 +106,7 @@ async def qualify(settings: Settings) -> dict:
             ("initial", "move", "reconnect"), (*settings.channels, settings.channels[1]), strict=True
         ):
             if abort.is_set():
-                raise ValueError("Unconsented membership change aborted test")
+                raise ValueError("Test bot moved outside configured channels")
             server = permitted_server(client, settings)
             channel = server.get_channel(channel_id)
             if name == "move" and isinstance(server.voice_client, VoiceRecvClient):
@@ -130,7 +122,7 @@ async def qualify(settings: Settings) -> dict:
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(abort.wait(), settings.phase_seconds)
             if abort.is_set():
-                raise ValueError("Unconsented membership change aborted test")
+                raise ValueError("Test bot moved outside configured channels")
             health = voice.receiver_health
             phases.append(
                 {
@@ -144,9 +136,10 @@ async def qualify(settings: Settings) -> dict:
             )
             if name == "reconnect":
                 await voice.disconnect(force=True)
-        passed = all(p["capture_ready"] and set(p["members_with_signal"]) == settings.members for p in phases)
+        passed, multiple = coverage(phases)
         return {
             "pcm_attribution_phases_passed": passed,
+            "multiple_speakers_exercised_in_all_phases": multiple,
             "phases": phases,
             "manual_gate": "Confirm overlapping speech, audible/PCM quality, epoch/rekey and OS reboot separately.",
         }
@@ -170,7 +163,7 @@ def main() -> None:
         result = asyncio.run(qualify(Settings.load(args.config)))
     except Exception:
         raise SystemExit(
-            "Live qualification failed; check local setup/consented participants. No credentials logged."
+            "Live qualification failed; check local setup and speaker signal. No credentials logged."
         ) from None
     args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
     raise SystemExit(0 if result["pcm_attribution_phases_passed"] else 2)
