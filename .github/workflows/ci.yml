@@ -32,6 +32,11 @@ jobs:
           cache: npm
       - name: Sync
         run: uv sync --locked --all-groups
+      - name: Linux native Opus runtime
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends libopus0
       - run: npm ci
       - name: Ruff
         run: uv run ruff check .
