@@ -116,10 +116,15 @@ async def qualify(settings: Settings) -> dict:
             if abort.is_set():
                 raise ValueError("Unconsented membership change aborted test")
             server = permitted_server(client, settings)
-            if server.voice_client:
-                await server.voice_client.disconnect(force=True)
             channel = server.get_channel(channel_id)
-            voice = await channel.connect(cls=VoiceRecvClient, self_deaf=False, timeout=20)
+            if name == "move" and isinstance(server.voice_client, VoiceRecvClient):
+                voice = server.voice_client
+                await voice.stop_listening("phase transition")
+                await voice.move_to(channel, timeout=20)
+            else:
+                if server.voice_client:
+                    await server.voice_client.disconnect(force=True)
+                voice = await channel.connect(cls=VoiceRecvClient, self_deaf=False, timeout=20)
             sink = MetricsSink(settings, channel_id)
             voice.listen(sink, decode_pcm=True)
             with contextlib.suppress(TimeoutError):
@@ -137,7 +142,8 @@ async def qualify(settings: Settings) -> dict:
                     "capture_ready": bool(health and health.capture_ready),
                 }
             )
-            await voice.disconnect(force=True)
+            if name == "reconnect":
+                await voice.disconnect(force=True)
         passed = all(p["capture_ready"] and set(p["members_with_signal"]) == settings.members for p in phases)
         return {
             "pcm_attribution_phases_passed": passed,
