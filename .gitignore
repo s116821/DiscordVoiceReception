@@ -19,3 +19,5 @@ models/
 state/
 *.sqlite*
 *.db
+package-check/
+package-requirements.txt
