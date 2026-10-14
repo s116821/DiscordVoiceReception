@@ -1,0 +1,5 @@
+# Design
+
+The existing successful-main-push/workflow/repository checks remain mandatory. Prefer release-distributions as before. Only workflow_dispatch may fall back to a unique, unexpired build-linux-x64 artifact. Preserve the original run ID and source SHA in job outputs. Download that immutable artifact and validate its Linux receipt, exact expected file set/checksums, wheel/sdist version, public stable GitHub release and lightweight tag commit against the original source. Every package/checksum digest must equal the published GitHub asset digest. Missing/mismatched/unpublished cases fail before OIDC upload.
+
+The registered publisher path/environment stay unchanged. Automatic docs/stale runs never use the fallback. Recovery never deletes tags, rebuilds distributions or invents versions; it uploads only the saved validated bytes after the GitHub release exists and original CI is successful. Checkout the trusted current workflow code before artifact download so checkout cannot remove saved files.

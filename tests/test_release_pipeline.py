@@ -10,6 +10,7 @@ from io import BytesIO
 from pathlib import Path
 
 import pytest
+from scripts.check_pypi_recovery import verify as verify_recovery
 from scripts.collect_release import collect
 
 
@@ -70,3 +71,39 @@ def test_collection_rejects_invalid_handoff(tmp_path: Path, damage: str) -> None
     with pytest.raises(ValueError):
         collect(source, tmp_path / "dist", "v1.1.1", "abc")
     assert not (tmp_path / "dist").exists()
+
+
+@pytest.mark.parametrize(
+    "damage", [None, "source", "tag", "published_hash", "draft", "prerelease", "checksum", "extra"]
+)
+def test_pypi_recovery_requires_original_published_bytes(tmp_path: Path, damage: str | None) -> None:
+    fixture(tmp_path)
+    directory = tmp_path / "build-linux-x64"
+    receipt = json.loads((directory / "build-receipt.json").read_text())
+    release = {
+        "tag_name": "v1.1.1",
+        "draft": False,
+        "prerelease": False,
+        "assets": [{"name": name, "digest": "sha256:" + digest} for name, digest in receipt["files"].items()],
+    }
+    ref = {"object": {"type": "commit", "sha": "abc", "url": "fixture"}}
+    source = "def" if damage == "source" else "abc"
+    if damage == "tag":
+        ref["object"]["sha"] = "def"
+    elif damage == "published_hash":
+        release["assets"][0]["digest"] = "sha256:changed"
+    elif damage in ("draft", "prerelease"):
+        release[damage] = True
+    elif damage == "checksum":
+        (directory / "SHA256SUMS").write_text("altered")
+    elif damage == "extra":
+        (directory / "extra.txt").write_text("unrecorded")
+
+    def api(endpoint: str) -> dict:
+        return release if "/releases/" in endpoint else ref
+
+    if damage is None:
+        verify_recovery(directory, source, "fixture/repo", api)
+    else:
+        with pytest.raises(ValueError):
+            verify_recovery(directory, source, "fixture/repo", api)
