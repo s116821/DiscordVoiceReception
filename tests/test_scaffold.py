@@ -134,6 +134,10 @@ def test_reference_analyzer_config_and_release_gate() -> None:
     assert "sha256sum --strict --check SHA256SUMS" in publish
     assert "run-id: ${{ needs.distributions.outputs.run }}" in publish
     assert "environment: pypi" in publish and "id-token: write" in publish
+    assert "context.eventName === 'workflow_dispatch'" in publish
+    assert "a.name === 'build-linux-x64'" in publish
+    assert "check_pypi_recovery.py" in publish
+    assert "core.setOutput('source', run.head_sha)" in publish
     pr = (ROOT / ".github/workflows/pr-title.yml").read_text(encoding="utf-8")
     assert "requireScope: true" in pr
     assert "fetch-depth: 0" in ci

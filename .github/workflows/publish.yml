@@ -27,6 +27,8 @@ jobs:
     outputs:
       artifact: ${{ steps.find.outputs.artifact }}
       run: ${{ steps.find.outputs.run }}
+      kind: ${{ steps.find.outputs.kind }}
+      source: ${{ steps.find.outputs.source }}
     steps:
       - name: Find distributions from a successful main push
         id: find
@@ -47,10 +49,17 @@ jobs:
             }
             const artifacts = await github.paginate(github.rest.actions.listWorkflowRunArtifacts,
               { ...context.repo, run_id });
-            const matches = artifacts.filter(a => a.name === 'release-distributions' && !a.expired);
+            let matches = artifacts.filter(a => a.name === 'release-distributions' && !a.expired);
+            let kind = 'release';
+            if (!matches.length && context.eventName === 'workflow_dispatch') {
+              matches = artifacts.filter(a => a.name === 'build-linux-x64' && !a.expired);
+              kind = 'build';
+            }
             if (matches.length > 1) throw new Error('Ambiguous release artifact');
             core.setOutput('run', String(run_id));
             core.setOutput('artifact', matches.length ? String(matches[0].id) : '');
+            core.setOutput('kind', kind);
+            core.setOutput('source', run.head_sha);
 
   pypi:
     needs: distributions
@@ -59,8 +68,11 @@ jobs:
     environment: pypi
     permissions:
       actions: read
+      contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@v4
+        if: needs.distributions.outputs.kind == 'build'
       - uses: actions/download-artifact@v4
         with:
           artifact-ids: ${{ needs.distributions.outputs.artifact }}
@@ -68,6 +80,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ needs.distributions.outputs.run }}
           path: dist/
+      - name: Verify recovered build against original published source and bytes
+        if: needs.distributions.outputs.kind == 'build'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ORIGINAL_SOURCE: ${{ needs.distributions.outputs.source }}
+        run: python scripts/check_pypi_recovery.py dist --source "$ORIGINAL_SOURCE"
       - name: Verify original distributions
         working-directory: dist
         run: |
