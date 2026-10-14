@@ -429,6 +429,9 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+build = [
+    { name = "packaging" },
+]
 dev = [
     { name = "packaging" },
     { name = "pytest" },
@@ -444,6 +447,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+build = [{ name = "packaging", specifier = ">=24" }]
 dev = [
     { name = "packaging", specifier = ">=24" },
     { name = "pytest", specifier = ">=8.3" },

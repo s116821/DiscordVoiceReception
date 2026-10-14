@@ -9,6 +9,7 @@ import tomllib
 from pathlib import Path
 
 import pytest
+import yaml
 from packaging.version import Version
 from scripts.create_release import artifact_version, assemble
 
@@ -107,14 +108,23 @@ def test_reference_analyzer_config_and_release_gate() -> None:
     assert {"breaking": True, "release": "major"} in options["releaseRules"]
     assert not (ROOT / f"src/{MODULE}/release_policy.py").exists()
     ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
-    release = (ROOT / ".github/workflows/release.yml").read_text(encoding="utf-8")
+    jobs = yaml.load(ci, Loader=yaml.BaseLoader)["jobs"]
     for gate in ("ruff check", "ruff format --check", "ty check", "pytest", "test:release", "spec:validate"):
         assert gate in ci
-    assert "needs: quality" in ci
-    assert "uses: ./.github/workflows/release.yml" in ci
-    assert "workflow_call:" in release and "push:" not in release
+    assert set(jobs) == {"quality", "build", "release"}
+    assert "strategy" not in jobs["quality"]
+    assert jobs["build"]["needs"] == "quality"
+    assert jobs["release"]["needs"] == ["quality", "build"]
+    assert "github.event_name == 'push'" in jobs["release"]["if"]
+    assert not (ROOT / ".github/workflows/release.yml").exists()
+    for job in (jobs["build"], jobs["release"]):
+        commands = "\n".join(step.get("run", "") for step in job["steps"])
+        assert all(check not in commands for check in ("ruff", "pytest", "ty check", "test:release", "spec:validate"))
+    upload = jobs["release"]["steps"][-1]
+    assert upload["with"]["name"] == "release-distributions"
+    assert upload["if"] == "steps.semantic.outputs.tag != ''"
     assert "RELEASE_READY" not in ci
-    assert "PYPI_PUBLISH_READY" not in release
+    assert "PYPI_PUBLISH_READY" not in ci
     publish = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")
     assert "workflow_run:" in publish and "workflow_dispatch:" in publish
     assert "workflow_call:" not in publish
@@ -126,7 +136,7 @@ def test_reference_analyzer_config_and_release_gate() -> None:
     assert "environment: pypi" in publish and "id-token: write" in publish
     pr = (ROOT / ".github/workflows/pr-title.yml").read_text(encoding="utf-8")
     assert "requireScope: true" in pr
-    assert "fetch-depth: 0" in ci and "fetch-depth: 0" in release
+    assert "fetch-depth: 0" in ci
 
 
 def test_ruff_rejects_invalid_source(tmp_path: Path) -> None:

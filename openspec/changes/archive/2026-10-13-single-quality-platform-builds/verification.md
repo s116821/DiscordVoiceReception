@@ -1,0 +1,7 @@
+# Verification
+
+Local Windows checks passed: npm ci, locked uv sync, Ruff/format/ty, 40 offline pytest cases and one intentionally skipped live case, uv wheel/sdist build, 13 actual analyzer cases plus actual-engine docs/patch/minor/breaking preview cases. The preview preserves original tags/main even when the local main reference is stale. Guard cases reject missing identity, mismatched source and mismatched version. Saved-artifact tests preserve canonical bytes and reject source/version/hash/unrecorded-file/metadata changes before creating publication output.
+
+Workflow regression checks enforce the three-job order, a single quality job without an OS matrix, no duplicated code checks in build/release and main-only publication. The final release-distributions upload requires an actual semantic-release result, preventing stale/docs-only builds from reaching the unchanged registered PyPI publisher. Original-run validation and checksum checks in publish.yml retain retry safety.
+
+Build jobs install the exact saved wheel with hashed locked runtime dependencies in a clean environment, check installed version/imports and construct a native Opus decoder. These are platform package checks rather than repeated unit suites. Hosted PR/main CI supplies platform installation and GitHub/PyPI publication evidence. No real Discord login or live recording occurred. Git operations retained loaded PowerShell profiles and process-scoped s116821 identity, including retries only when the hook explicitly did not run Git.

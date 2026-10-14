@@ -8,13 +8,16 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   quality:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
+      commit: ${{ steps.plan.outputs.commit }}
     env:
       OPENSPEC_TELEMETRY: "0"
       DISCORD_LIVE_TESTS: "0"
@@ -30,38 +33,106 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - name: Sync
-        run: uv sync --locked --all-groups
-      - name: Linux native Opus runtime
-        if: runner.os == 'Linux'
+      - name: Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends libopus0
-      - run: npm ci
-      - name: Ruff
-        run: uv run ruff check .
-      - name: Ruff format
-        run: uv run ruff format --check .
-      - name: ty
-        run: uv run ty check
-      - name: pytest
-        run: uv run pytest
-      - name: Actual semantic-release analyzer
-        run: npm run test:release
-      - name: OpenSpec canonical validation
-        run: npm run spec:validate
-      - name: OpenSpec merge readiness
-        run: uv run python scripts/check_openspec.py
-      - name: Build
-        run: uv build
+          uv sync --locked --all-groups
+          npm ci
+          sudo apt-get update && sudo apt-get install -y libopus0
+      - name: Code checks
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run ty check
+          uv run pytest
+          npm run test:release
+          npm run spec:validate
+          uv run python scripts/check_openspec.py
+      - name: Read-only semantic-release candidate preview
+        id: plan
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: node scripts/plan_release.mjs
+
+  build:
+    needs: quality
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+          - os: windows-latest
+            platform: windows-x64
+    runs-on: ${{ matrix.os }}
+    env:
+      DISCORD_LIVE_TESTS: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.0"
+      - name: Linux native codec
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libopus0
+      - name: Build package and install saved wheel once
+        id: package
+        shell: pwsh
+        env:
+          CANDIDATE_TAG: ${{ needs.quality.outputs.tag }}
+        run: |
+          uv sync --locked --no-dev --group build
+          uv run --no-dev --group build python -m scripts.build_platform --platform '${{ matrix.platform }}' --candidate "$env:CANDIDATE_TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.platform }}
+          path: dist/
 
   release:
-    needs: quality
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [quality, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality.outputs.tag != ''
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
       pull-requests: write
       id-token: write
       attestations: write
-    uses: ./.github/workflows/release.yml
+    env:
+      EXPECTED_TAG: ${{ needs.quality.outputs.tag }}
+      EXPECTED_COMMIT: ${{ needs.quality.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.0"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Publication tools
+        run: |
+          uv sync --locked --no-dev --group build
+          npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: build-*
+          path: saved-builds/
+      - name: Verify source, version and checksums; collect saved files
+        shell: pwsh
+        run: uv run --no-dev --group build python -m scripts.collect_release saved-builds --tag "$env:EXPECTED_TAG" --commit "$env:EXPECTED_COMMIT"
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist/*'
+      - name: Final semantic-release resolution and publication
+        id: semantic
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/release.mjs
+      - uses: actions/upload-artifact@v4
+        if: steps.semantic.outputs.tag != ''
+        with:
+          name: release-distributions
+          path: dist/
