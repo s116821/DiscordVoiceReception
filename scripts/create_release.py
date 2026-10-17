@@ -56,7 +56,7 @@ def assemble(root: Path, output: Path, tag: str) -> list[Path]:
             with tempfile.TemporaryDirectory() as directory:
                 staging = Path(directory)
                 shutil.copy2(wheels[0], staging / wheels[0].name)
-                for name in ("LICENSE", ".python-version", "config.example.json", "runtime-requirements.txt"):
+                for name in ("LICENSE", "config.example.json", "runtime-requirements.txt"):
                     if (root / name).exists():
                         shutil.copy2(root / name, staging / name)
                 for name in ("INSTALL.md", "install.sh", "install.ps1"):
