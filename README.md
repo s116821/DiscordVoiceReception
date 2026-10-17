@@ -19,7 +19,6 @@ uv run ruff check .
 uv run ruff format --check .
 uv run ty check
 uv run pytest
-npm run test:release
 npm run spec:validate
 uv run python scripts/check_openspec.py
 uv build
@@ -42,3 +41,5 @@ PyPI uses the registered trusted publisher for owner s116821, repository Discord
 ## Provenance and license
 
 GPL-3.0-only; preserve the existing LICENSE. Engineering/versioning baseline adapted from s116821/OnVelvetVelma at commit a5964e3fe7d83e7a27d655c324a76eda28cb387c (corrected PR #11). Receive/DAVE design ancestry and retained MIT notices are recorded in NOTICE and licenses/. Dependency licenses remain applicable.
+
+Node manifests pin the OpenSpec and actual semantic-release development/release toolchain; Node is not required by the installed receiver runtime. CI explicitly selects Python 3.12 without a repository selector file. `npm run test:release` remains available for deliberate release-tool changes and is omitted from ordinary code checks.
