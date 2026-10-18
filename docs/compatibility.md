@@ -14,8 +14,8 @@ The packet layout/receive approach informed this focused implementation. Upstrea
 
 Supported transport is aead_xchacha20_poly1305_rtpsize, negotiated by the pinned SDK. Unsupported modes fail closed. Video/RTCP consumers and legacy transport modes are outside this API. Optional PCM supports bounded packet loss concealment; Opus has no fabricated loss frames. Forward error correction is not implemented.
 
-## Qualification evidence and remaining gate
+## Qualification evidence and remaining work
 
 Offline tests exercise actual PyNaCl transport round trips and authentication, real Opus encoder/decoder, native davey session readiness, simulated DAVE epoch failure/recovery, packet reordering/wrap, SSRC reuse, reconnect resets, independent sinks, bounded queues and cancellation. Synthetic DAVE fixtures verify the adapter contract; they do not prove live MLS decryption.
 
-**DEG-11 is still required:** disposable server, authorized bot identity, consenting human/synthetic speakers, DAVE negotiation/decrypt, rekey, reconnect/move, simultaneous speakers and both target OS installations. Do not enable RELEASE_READY or PyPI publication until this passes. No production Discord server has been tested.
+**DEG-11 remains incomplete:** controlled disposable-server evidence is still needed for DAVE negotiation/decrypt, genuine rekey, reconnect/move, simultaneous speakers and both target OS installations. The [qualification harness](qualification.md) discovers participants automatically; no per-member ID allowlist is configured. These acceptance limits are documented separately from automatic quality-gated development releases and trusted PyPI publication; no readiness switches gate publication. No production Discord server has been used for qualification testing.

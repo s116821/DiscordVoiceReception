@@ -14,7 +14,7 @@ Create a separate local JSON outside the checkout:
 }
 ```
 
-Protect this file: Linux mode0600; Windows private NTFS ACL with only the operator/Administrators/SYSTEM, no broad Users/Everyone/Authenticated Users read. Grant the bot only View Channel/Connect permissions and use guilds+voice_states intents (no privileged message content). Verify bot/server/channel identity before enabling live tests. Tokens are entered locally, never in CI logs, issue comments or task arguments.
+Protect this file: Linux mode0600; Windows private NTFS ACL with only the operator/Administrators/SYSTEM, no broad Users/Everyone/Authenticated Users read. Grant the receiving-only harness View Channel/Connect permissions and use guilds+voice_states intents (no privileged message content). Applications that also transmit audio need Speak; DisCuss replay setup is covered in its [application setup guide](https://github.com/s116821/DisCuss/blob/main/docs/discord-setup.md). Verify bot/server/channel identity before enabling live tests. Tokens are entered locally, never in CI logs, issue comments or task arguments.
 
 ```sh
 uv run python -m examples.qualify --config /protected/temporary-test.json --temporary-server-confirmed --output /protected/receiver-metrics.json
@@ -24,4 +24,4 @@ Or explicitly set DISCORD_LIVE_TESTS=1 and DISCORD_TEST_CONFIG to that protected
 
 The result separately reports `multiple_speakers_exercised_in_all_phases`; a solo pass leaves that false. Passing these phases demonstrates received nonzero PCM attributed to dynamically discovered speakers, not perfect audio or comprehensive DAVE key rotation. Record separately: overlapping simultaneous speech remains correctly attributed; encoded→PCM quality supports downstream VAD; membership join/leave induces a genuine observed SDK DAVE epoch transition without key dumps; restart/rekey/reconnect resume cleanly; Linux/Windows supported pinned installs pass. Test missing permissions/disconnection safely and turn off/delete temporary test applications/server through the operator after qualification. Never disclose token/key material in failure reports.
 
-DEG-11 stays incomplete until these live/manual checks have objective evidence on both OSes. Trusted PyPI publisher registration/name ownership and explicit RELEASE_READY/PYPI_PUBLISH_READY follow only after qualification. Offline fixtures, this harness and synthetic DAVE contract tests cannot substitute for live MLS proof.
+DEG-11 stays incomplete until these live/manual checks have objective evidence on both OSes. Offline fixtures, this harness and synthetic DAVE contract tests cannot substitute for live MLS proof. Development releases run automatically after successful main CI; the registered trusted publisher uploads the exact validated release artifacts to PyPI without readiness variables. See [release and publication operations](../README.md#version-and-releases). Publication does not imply broader live qualification has passed.
