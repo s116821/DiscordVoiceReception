@@ -2,7 +2,7 @@
 
 ## Why
 
-DiscordVoiceReception currently contains only a README and license. Its first implementation must establish the agreed OnVelvetVelma engineering baseline before feature changes can merge (DEG-2).
+DiscordVoiceReception currently contains only a README and license. Its first implementation must establish the documented Python packaging and automated release baseline before feature changes can merge (DEG-2).
 
 ## What Changes
 
