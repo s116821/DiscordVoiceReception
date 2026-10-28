@@ -61,8 +61,7 @@ def test_actual_tag_build_and_release_assets(tmp_path: Path) -> None:
     for name in ("pyproject.toml", "README.md", "LICENSE", "NOTICE", "uv.lock", ".gitignore"):
         shutil.copy2(ROOT / name, repo / name)
     shutil.copytree(ROOT / "src", repo / "src", ignore=shutil.ignore_patterns("__pycache__"))
-    for name in ("licenses", "docs", "examples"):
-        shutil.copytree(ROOT / name, repo / name)
+    shutil.copytree(ROOT / "docs", repo / "docs")
     for name in (".agents/noise.md", ".github/workflows/noise.yml", "openspec/noise.md", "scripts/noise.py"):
         path = repo / name
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -94,9 +93,9 @@ def test_actual_tag_build_and_release_assets(tmp_path: Path) -> None:
         names = {"/".join(member.name.split("/")[1:]) for member in archive.getmembers()}
         assert not any(name.startswith((".agents/", ".cursor/", ".github/", "openspec/", "scripts/")) for name in names)
         assert "package.json" not in names and "package-lock.json" not in names
-        assert {"LICENSE", "NOTICE", "licenses/discord-ext-voice-recv.txt", "pyproject.toml", "uv.lock"} <= names
+        assert {"LICENSE", "NOTICE", "docs/licenses/discord-ext-voice-recv.txt", "pyproject.toml", "uv.lock"} <= names
         assert any(name.startswith("docs/") for name in names)
-        assert any(name.startswith("examples/") for name in names)
+        assert any(name.startswith("docs/examples/") for name in names)
         archive.extractall(extracted, filter="data")
     source_root = next(extracted.iterdir())
     rebuilt = tmp_path / "rebuilt"
@@ -110,7 +109,7 @@ def test_actual_tag_build_and_release_assets(tmp_path: Path) -> None:
         assert "discord_voice_reception/__init__.py" in names and "discord_voice_reception/py.typed" in names
         assert any(name.endswith("/licenses/LICENSE") for name in names)
         assert any(name.endswith("/licenses/NOTICE") for name in names)
-        assert any(name.endswith("/licenses/licenses/discord-ext-voice-recv.txt") for name in names)
+        assert any(name.endswith("/licenses/docs/licenses/discord-ext-voice-recv.txt") for name in names)
     subprocess.run(
         [
             sys.executable,

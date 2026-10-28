@@ -8,7 +8,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from examples.qualify import MetricsSink, Settings, coverage, permitted_server, qualify
+from docs.examples.qualify import MetricsSink, Settings, coverage, permitted_server, qualify
 
 from discord_voice_reception.client import VoiceRecvClient, _SafeVoiceLogs
 

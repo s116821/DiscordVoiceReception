@@ -17,3 +17,7 @@ Tests are offline by default. No production Discord server testing. Live accepta
 Release fixture tests (`npm run test:release`) remain callable on demand and are not an ordinary quality gate. CI selects Python 3.12 explicitly; Node manifests pin OpenSpec and semantic-release.
 
 Routine CI orchestration belongs in workflows using existing actions/CLIs. Custom tools need a package-specific purpose documented in scripts/README.md. Quality has no version planning. Main build checkouts may preview the actual analyzer for wheel metadata, with final source/tag guards before publication. Keep wheel/sdist as the library's public assets and verify source-only rebuilds, notices and typing metadata when changing distribution contents.
+
+## Repository layout
+
+Keep root directories intentional and minimal. Put runnable documentation examples in docs/examples and third-party license notices in docs/licenses; keep the main LICENSE and NOTICE files at root. Prefer existing docs or scripts locations. A new root directory needs a distinct top-level responsibility and a brief justification in the PR.

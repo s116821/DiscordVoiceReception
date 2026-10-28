@@ -4,7 +4,7 @@ A reusable Python voice-reception library extending discord.py. Speech recogniti
 
 **Current status: experimental receiver, awaiting live qualification.** The package provides bounded speaker-attributed Opus/PCM delivery through VoiceRecvClient and asynchronous sinks. Offline fixtures cover transport authentication, decoding, DAVE session readiness, mapping and lifecycle. Live DAVE negotiation/decryption acceptance remains DEG-11; no functional release is qualified.
 
-See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.5.0 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
+See [receive API](docs/api.md), [dependency review and compatibility](docs/compatibility.md) and the opt-in [disposable-server example](docs/examples/receive.py). Runtime pins are discord.py 2.7.1 and davey 0.1.7, with PyNaCl 1.5.0 in uv.lock. The library owns no speech recognition, profanity, analytics or persistent audio.
 
 The [guarded qualification harness](docs/qualification.md) runs bounded PCM attribution/move/reconnect checks only with explicit opt-in and a separate disposable test configuration. Normal pytest skips live tests without logging in.
 
@@ -40,7 +40,7 @@ PyPI uses the registered trusted publisher for owner s116821, repository Discord
 
 ## Provenance and license
 
-GPL-3.0-only; preserve the existing LICENSE. Receive/DAVE design ancestry and retained MIT notices are recorded in NOTICE and licenses/. Dependency licenses remain applicable.
+GPL-3.0-only; preserve the existing LICENSE. Receive/DAVE design ancestry and retained MIT notices are recorded in NOTICE and docs/licenses/. Dependency licenses remain applicable.
 
 Node manifests pin the OpenSpec and actual semantic-release development/release toolchain; Node is not required by the installed receiver runtime. CI explicitly selects Python 3.12 without a repository selector file. `npm run test:release` remains available for deliberate release-tool changes and is omitted from ordinary code checks.
 
