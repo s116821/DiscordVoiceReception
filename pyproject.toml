@@ -5,7 +5,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dynamic = ["version"]
 license = "GPL-3.0-only"
-license-files = ["LICENSE", "NOTICE", "licenses/*.txt"]
+license-files = ["LICENSE", "NOTICE", "docs/licenses/*.txt"]
 dependencies = [
     "davey==0.1.7",
     "discord-py[voice]==2.7.1",
@@ -34,7 +34,7 @@ packages = ["src/discord_voice_reception"]
 "src/discord_voice_reception" = "discord_voice_reception"
 
 [tool.hatch.build.targets.sdist]
-include = ["/src", "/docs", "/examples", "/LICENSE", "/NOTICE", "/licenses", "/README.md", "/pyproject.toml", "/uv.lock"]
+include = ["/src", "/docs", "/LICENSE", "/NOTICE", "/README.md", "/pyproject.toml", "/uv.lock"]
 
 [tool.ruff]
 line-length = 120

@@ -10,7 +10,7 @@ Receive extension and RTP/DAVE design ancestry:
 
 The focused receiver is newly authored from inspected SDK/wire contracts; it does not
 vendor the upstream optional sinks, reader logging, video or namespace modules.
-The original MIT permission/copyright notice is retained in licenses/discord-ext-voice-recv.txt.
+The original MIT permission/copyright notice is retained in docs/licenses/discord-ext-voice-recv.txt.
 
 Dependencies discord.py, davey and PyNaCl retain their own licenses and notices.
 No cryptographic primitives have been copied or implemented in this package.
