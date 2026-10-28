@@ -33,6 +33,9 @@ packages = ["src/discord_voice_reception"]
 [tool.hatch.build.targets.wheel.sources]
 "src/discord_voice_reception" = "discord_voice_reception"
 
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/docs", "/examples", "/LICENSE", "/NOTICE", "/licenses", "/README.md", "/pyproject.toml", "/uv.lock"]
+
 [tool.ruff]
 line-length = 120
 src = ["src", "tests"]

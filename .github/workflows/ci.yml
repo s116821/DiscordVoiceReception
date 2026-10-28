@@ -18,9 +18,6 @@ env:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    outputs:
-      tag: ${{ steps.plan.outputs.tag }}
-      commit: ${{ steps.plan.outputs.commit }}
     env:
       OPENSPEC_TELEMETRY: "0"
       DISCORD_LIVE_TESTS: "0"
@@ -49,13 +46,11 @@ jobs:
           uv run pytest
           npm run spec:validate
           uv run python scripts/check_openspec.py
-      - name: Resolve package version for builds
-        id: plan
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: node scripts/plan_release.mjs
 
   build:
     needs: quality
+    outputs:
+      tag: ${{ steps.plan.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -74,17 +69,56 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           version: "0.13.0"
+      - uses: actions/setup-node@v4
+        if: github.event_name == 'push'
+        with:
+          node-version: "24"
+          cache: npm
+      # Wheels embed their version. Resolve a local candidate in disposable
+      # build checkouts; only the final release job can publish a tag.
+      - name: Resolve local build tag with the configured analyzer
+        id: plan
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          npm ci
+          node --input-type=module <<'JS'
+          import semanticRelease from 'semantic-release';
+          import {appendFile, readFile} from 'node:fs/promises';
+          import {pathToFileURL} from 'node:url';
+          import {resolve} from 'node:path';
+          const config = JSON.parse(await readFile('.releaserc.json', 'utf8'));
+          const result = await semanticRelease({
+            ...config, dryRun: true, noCi: true,
+            repositoryUrl: pathToFileURL(resolve('.git')).href,
+            plugins: [config.plugins[0]],
+          });
+          await appendFile(process.env.GITHUB_OUTPUT, `tag=${result ? result.nextRelease.gitTag : ''}\n`);
+          JS
       - name: Linux native codec
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libopus0
-      - name: Build package and install saved wheel once
+      - name: Build distributions and install saved wheel once
         id: package
         shell: pwsh
         env:
-          CANDIDATE_TAG: ${{ needs.quality.outputs.tag }}
+          CANDIDATE_TAG: ${{ steps.plan.outputs.tag }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
+          $PSNativeCommandUseErrorActionPreference = $true
           uv sync --locked --no-dev --group build
-          uv run --no-dev --group build python -m scripts.build_platform --platform '${{ matrix.platform }}' --candidate "$env:CANDIDATE_TAG"
+          if ($env:CANDIDATE_TAG) { git tag $env:CANDIDATE_TAG $env:GITHUB_SHA }
+          $env:SOURCE_DATE_EPOCH = git show -s --format=%ct HEAD
+          uv build
+          uv run --no-dev --group build python -m scripts.package_release assemble --platform $env:PLATFORM --tag "$env:CANDIDATE_TAG" --commit $env:GITHUB_SHA
+          uv venv package-check --python 3.12
+          $python = if ($IsWindows) { 'package-check/Scripts/python.exe' } else { 'package-check/bin/python' }
+          uv export --locked --no-dev --no-emit-project --format requirements-txt --output-file package-requirements.txt
+          uv pip sync --python $python --require-hashes package-requirements.txt
+          $wheel = (Get-ChildItem dist/*.whl).FullName
+          uv pip install --python $python --no-deps $wheel
+          $tag = (Get-Content dist/build-receipt.json -Raw | ConvertFrom-Json).tag
+          & $python -I -c 'import discord_voice_reception as r; from discord.opus import Decoder; import sys; assert r.service_version()==sys.argv[1]; Decoder()' $tag.Substring(1)
       - uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.platform }}
@@ -92,7 +126,7 @@ jobs:
 
   release:
     needs: [quality, build]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.quality.outputs.tag != ''
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.build.outputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -101,8 +135,8 @@ jobs:
       id-token: write
       attestations: write
     env:
-      EXPECTED_TAG: ${{ needs.quality.outputs.tag }}
-      EXPECTED_COMMIT: ${{ needs.quality.outputs.commit }}
+      EXPECTED_TAG: ${{ needs.build.outputs.tag }}
+      EXPECTED_COMMIT: ${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -124,17 +158,19 @@ jobs:
           path: saved-builds/
       - name: Verify source, version and checksums; collect saved files
         shell: pwsh
-        run: uv run --no-dev --group build python -m scripts.collect_release saved-builds --tag "$env:EXPECTED_TAG" --commit "$env:EXPECTED_COMMIT"
+        run: uv run --no-dev --group build python -m scripts.package_release collect saved-builds --tag "$env:EXPECTED_TAG" --commit "$env:EXPECTED_COMMIT"
       - uses: actions/attest-build-provenance@v2
         with:
           subject-path: 'dist/*'
       - name: Final semantic-release resolution and publication
         id: semantic
+        uses: cycjimmy/semantic-release-action@v6
+        with:
+          semantic_version: "25.0.2"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/release.mjs
       - uses: actions/upload-artifact@v4
-        if: steps.semantic.outputs.tag != ''
+        if: steps.semantic.outputs.new_release_published == 'true'
         with:
           name: release-distributions
           path: dist/
