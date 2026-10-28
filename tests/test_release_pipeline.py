@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from scripts.check_pypi_recovery import verify as verify_recovery
-from scripts.collect_release import collect
+from scripts.package_release import collect
 
 
 def fixture(root: Path) -> None:

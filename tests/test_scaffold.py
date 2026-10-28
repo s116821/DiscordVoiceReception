@@ -5,13 +5,16 @@ import json
 import re
 import shutil
 import subprocess
+import sys
+import tarfile
 import tomllib
+import zipfile
 from pathlib import Path
 
 import pytest
 import yaml
 from packaging.version import Version
-from scripts.create_release import artifact_version, assemble
+from scripts.package_release import artifact_version, assemble
 
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
@@ -55,11 +58,16 @@ def test_runtime_metadata_and_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_actual_tag_build_and_release_assets(tmp_path: Path) -> None:
     repo = tmp_path / "tagged"
     repo.mkdir()
-    for name in ("pyproject.toml", "README.md", "LICENSE", ".gitignore"):
+    for name in ("pyproject.toml", "README.md", "LICENSE", "NOTICE", "uv.lock", ".gitignore"):
         shutil.copy2(ROOT / name, repo / name)
     shutil.copytree(ROOT / "src", repo / "src", ignore=shutil.ignore_patterns("__pycache__"))
-    if (ROOT / "deploy").exists():
-        shutil.copytree(ROOT / "deploy", repo / "deploy")
+    for name in ("licenses", "docs", "examples"):
+        shutil.copytree(ROOT / name, repo / name)
+    for name in (".agents/noise.md", ".github/workflows/noise.yml", "openspec/noise.md", "scripts/noise.py"):
+        path = repo / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("development-only fixture")
+    (repo / "package.json").write_text("{}")
     run_git(repo, "init")
     run_git(repo, "add", ".")
     run_git(
@@ -80,6 +88,41 @@ def test_actual_tag_build_and_release_assets(tmp_path: Path) -> None:
     assets = assemble(repo, repo / "dist", "v1.2.3")
     assert (repo / "dist/SHA256SUMS").is_file()
     assert all("1.2.3" in p.name or p.name == "SHA256SUMS" for p in assets)
+    source = next((repo / "dist").glob("*.tar.gz"))
+    extracted = tmp_path / "extracted"
+    with tarfile.open(source) as archive:
+        names = {"/".join(member.name.split("/")[1:]) for member in archive.getmembers()}
+        assert not any(name.startswith((".agents/", ".cursor/", ".github/", "openspec/", "scripts/")) for name in names)
+        assert "package.json" not in names and "package-lock.json" not in names
+        assert {"LICENSE", "NOTICE", "licenses/discord-ext-voice-recv.txt", "pyproject.toml", "uv.lock"} <= names
+        assert any(name.startswith("docs/") for name in names)
+        assert any(name.startswith("examples/") for name in names)
+        archive.extractall(extracted, filter="data")
+    source_root = next(extracted.iterdir())
+    rebuilt = tmp_path / "rebuilt"
+    subprocess.run(
+        ["uv", "build", "--wheel", "--out-dir", str(rebuilt)], cwd=source_root, check=True, capture_output=True
+    )
+    rebuilt_wheel = next(rebuilt.glob("*.whl"))
+    assert artifact_version(rebuilt_wheel) == "1.2.3"
+    with zipfile.ZipFile(rebuilt_wheel) as archive:
+        names = archive.namelist()
+        assert "discord_voice_reception/__init__.py" in names and "discord_voice_reception/py.typed" in names
+        assert any(name.endswith("/licenses/LICENSE") for name in names)
+        assert any(name.endswith("/licenses/NOTICE") for name in names)
+        assert any(name.endswith("/licenses/licenses/discord-ext-voice-recv.txt") for name in names)
+    subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            "import sys; sys.path.insert(0, sys.argv[1]); import discord_voice_reception as r; "
+            "assert r.__file__.startswith(sys.argv[1]); assert r.service_version()=='1.2.3'",
+            str(rebuilt_wheel),
+        ],
+        check=True,
+        capture_output=True,
+    )
     with pytest.raises(ValueError, match="metadata does not match"):
         # Fresh build output: exclude the already created deployment tarball.
         clean = tmp_path / "mismatch"
@@ -122,7 +165,9 @@ def test_reference_analyzer_config_and_release_gate() -> None:
         assert all(check not in commands for check in ("ruff", "pytest", "ty check", "test:release", "spec:validate"))
     upload = jobs["release"]["steps"][-1]
     assert upload["with"]["name"] == "release-distributions"
-    assert upload["if"] == "steps.semantic.outputs.tag != ''"
+    assert upload["if"] == "steps.semantic.outputs.new_release_published == 'true'"
+    assert "outputs" not in jobs["quality"]
+    assert "semantic" not in "\n".join(step.get("run", "") for step in jobs["quality"]["steps"])
     assert "RELEASE_READY" not in ci
     assert "PYPI_PUBLISH_READY" not in ci
     publish = (ROOT / ".github/workflows/publish.yml").read_text(encoding="utf-8")

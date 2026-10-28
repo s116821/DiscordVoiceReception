@@ -15,3 +15,5 @@ Run npm ci, uv sync --locked --all-groups, uv run ruff check ., uv run ruff form
 Tests are offline by default. No production Discord server testing. Live acceptance requires explicit opt-in and a disposable test server. Never commit or print tokens, keys, raw audio or unrelated transcripts. Use server terminology in external interfaces; SDK names remain at the adapter boundary.
 
 Release fixture tests (`npm run test:release`) remain callable on demand and are not an ordinary quality gate. CI selects Python 3.12 explicitly; Node manifests pin OpenSpec and semantic-release.
+
+Routine CI orchestration belongs in workflows using existing actions/CLIs. Custom tools need a package-specific purpose documented in scripts/README.md. Quality has no version planning. Main build checkouts may preview the actual analyzer for wheel metadata, with final source/tag guards before publication. Keep wheel/sdist as the library's public assets and verify source-only rebuilds, notices and typing metadata when changing distribution contents.
